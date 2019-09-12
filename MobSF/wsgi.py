@@ -8,7 +8,11 @@ https://docs.djangoproject.com/en/dev/howto/deployment/wsgi/
 """
 
 import os
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "MobSF.settings")
 
 from django.core.wsgi import get_wsgi_application
-application = get_wsgi_application()
+
+from whitenoise import WhiteNoise
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'MobSF.settings')
+
+application = WhiteNoise(get_wsgi_application(),
+                         root='static', prefix='static/')

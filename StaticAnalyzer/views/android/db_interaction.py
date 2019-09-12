@@ -1,23 +1,27 @@
 # -*- coding: utf_8 -*-
-"""Module holding the functions for the db."""
+import logging
 
-from MobSF.utils import (
-    PrintException,
-    python_list,
-    python_dict
-)
+from django.db.models import QuerySet
+
+from MobSF.utils import python_dict, python_list
 
 from StaticAnalyzer.models import StaticAnalyzerAndroid
 
+"""Module holding the functions for the db."""
 
-def get_context_from_db_entry(db_entry):
-    """Return the context for APK/ZIP from DB"""
+
+logger = logging.getLogger(__name__)
+
+
+def get_context_from_db_entry(db_entry: QuerySet) -> dict:
+    """Return the context for APK/ZIP from DB."""
     try:
-        print "\n[INFO] Analysis is already Done. Fetching data from the DB..."
+        logger.info('Analysis is already Done. Fetching data from the DB...')
 
         context = {
             'title': db_entry[0].TITLE,
             'name': db_entry[0].APP_NAME,
+            'real_name': db_entry[0].REAL_NAME,
             'size': db_entry[0].SIZE,
             'md5': db_entry[0].MD5,
             'sha1': db_entry[0].SHA1,
@@ -34,6 +38,8 @@ def get_context_from_db_entry(db_entry):
             'binary_analysis': python_list(db_entry[0].BIN_ANALYSIS),
             'files': python_list(db_entry[0].FILES),
             'certz': db_entry[0].CERTZ,
+            'icon_hidden': db_entry[0].ICON_HIDDEN,
+            'icon_found': db_entry[0].ICON_FOUND,
             'activities': python_list(db_entry[0].ACTIVITIES),
             'receivers': python_list(db_entry[0].RECEIVERS),
             'providers': python_list(db_entry[0].PROVIDERS),
@@ -46,16 +52,12 @@ def get_context_from_db_entry(db_entry):
             'bro_count': db_entry[0].CNT_BRO,
             'certinfo': db_entry[0].CERT_INFO,
             'issued': db_entry[0].ISSUED,
-            'native': db_entry[0].NATIVE,
-            'dynamic': db_entry[0].DYNAMIC,
-            'reflection': db_entry[0].REFLECT,
-            'crypto': db_entry[0].CRYPTO,
-            'obfus': db_entry[0].OBFUS,
-            'api': db_entry[0].API,
-            'dang': db_entry[0].DANG,
-            'urls': db_entry[0].URLS,
+            'sha256Digest': db_entry[0].SHA256DIGEST,
+            'api': python_dict(db_entry[0].API),
+            'findings': python_dict(db_entry[0].DANG),
+            'urls': python_list(db_entry[0].URLS),
             'domains': python_dict(db_entry[0].DOMAINS),
-            'emails': db_entry[0].EMAILS,
+            'emails': python_list(db_entry[0].EMAILS),
             'strings': python_list(db_entry[0].STRINGS),
             'zipped': db_entry[0].ZIPPED,
             'mani': db_entry[0].MANI,
@@ -64,18 +66,29 @@ def get_context_from_db_entry(db_entry):
             'e_bro': db_entry[0].E_BRO,
             'e_cnt': db_entry[0].E_CNT,
             'apkid': python_dict(db_entry[0].APK_ID),
+            'play_details': python_dict(db_entry[0].PLAY_DETAILS),
+            'firebase': python_list(db_entry[0].FIREBASE),
+            'trackers': python_dict(db_entry[0].TRACKERS),
         }
         return context
-    except:
-        PrintException("[ERROR] Fetching from DB")
+    except Exception:
+        logger.exception('Fetching from DB')
 
 
-def get_context_from_analysis(app_dic, man_data_dic, man_an_dic, code_an_dic, cert_dic, bin_anal, apk_id):
-    """Get the context for APK/ZIP from analysis results"""
+def get_context_from_analysis(app_dic,
+                              man_data_dic,
+                              man_an_dic,
+                              code_an_dic,
+                              cert_dic,
+                              bin_anal,
+                              apk_id,
+                              trackers) -> dict:
+    """Get the context for APK/ZIP from analysis results."""
     try:
         context = {
             'title': 'Static Analysis',
             'name': app_dic['app_name'],
+            'real_name': app_dic['real_name'],
             'size': app_dic['size'],
             'md5': app_dic['md5'],
             'sha1': app_dic['sha1'],
@@ -92,6 +105,8 @@ def get_context_from_analysis(app_dic, man_data_dic, man_an_dic, code_an_dic, ce
             'binary_analysis': bin_anal,
             'files': app_dic['files'],
             'certz': app_dic['certz'],
+            'icon_hidden': app_dic['icon_hidden'],
+            'icon_found': app_dic['icon_found'],
             'activities': man_data_dic['activities'],
             'receivers': man_data_dic['receivers'],
             'providers': man_data_dic['providers'],
@@ -104,37 +119,44 @@ def get_context_from_analysis(app_dic, man_data_dic, man_an_dic, code_an_dic, ce
             'bro_count': man_an_dic['cnt_bro'],
             'certinfo': cert_dic['cert_info'],
             'issued': cert_dic['issued'],
-            'native': code_an_dic['native'],
-            'dynamic': code_an_dic['dynamic'],
-            'reflection': code_an_dic['reflect'],
-            'crypto': code_an_dic['crypto'],
-            'obfus': code_an_dic['obfus'],
+            'sha256Digest': cert_dic['sha256Digest'],
             'api': code_an_dic['api'],
-            'dang': code_an_dic['dang'],
+            'findings': code_an_dic['findings'],
             'urls': code_an_dic['urls'],
             'domains': code_an_dic['domains'],
             'emails': code_an_dic['emails'],
             'strings': app_dic['strings'],
             'zipped': app_dic['zipped'],
             'mani': app_dic['mani'],
-            'e_act': man_an_dic['exported_cnt']["act"],
-            'e_ser': man_an_dic['exported_cnt']["ser"],
-            'e_bro': man_an_dic['exported_cnt']["bro"],
-            'e_cnt': man_an_dic['exported_cnt']["cnt"],
+            'e_act': man_an_dic['exported_cnt']['act'],
+            'e_ser': man_an_dic['exported_cnt']['ser'],
+            'e_bro': man_an_dic['exported_cnt']['bro'],
+            'e_cnt': man_an_dic['exported_cnt']['cnt'],
             'apkid': apk_id,
+            'play_details': app_dic['playstore'],
+            'firebase': code_an_dic['firebase'],
+            'trackers': trackers,
         }
         return context
-    except:
-        PrintException("[ERROR] Rendering to Template")
+    except Exception:
+        logger.exception('Rendering to Template')
 
 
-def update_db_entry(app_dic, man_data_dic, man_an_dic, code_an_dic, cert_dic, bin_anal, apk_id):
-    """Update an APK/ZIP DB entry"""
+def update_db_entry(app_dic,
+                    man_data_dic,
+                    man_an_dic,
+                    code_an_dic,
+                    cert_dic,
+                    bin_anal,
+                    apk_id,
+                    trackers) -> None:
+    """Update an APK/ZIP DB entry."""
     try:
         # pylint: disable=E1101
         StaticAnalyzerAndroid.objects.filter(MD5=app_dic['md5']).update(
             TITLE='Static Analysis',
             APP_NAME=app_dic['app_name'],
+            REAL_NAME=app_dic['real_name'],
             SIZE=app_dic['size'],
             MD5=app_dic['md5'],
             SHA1=app_dic['sha1'],
@@ -151,6 +173,8 @@ def update_db_entry(app_dic, man_data_dic, man_an_dic, code_an_dic, cert_dic, bi
             BIN_ANALYSIS=bin_anal,
             FILES=app_dic['files'],
             CERTZ=app_dic['certz'],
+            ICON_HIDDEN=app_dic['icon_hidden'],
+            ICON_FOUND=app_dic['icon_found'],
             ACTIVITIES=man_data_dic['activities'],
             RECEIVERS=man_data_dic['receivers'],
             PROVIDERS=man_data_dic['providers'],
@@ -163,13 +187,9 @@ def update_db_entry(app_dic, man_data_dic, man_an_dic, code_an_dic, cert_dic, bi
             CNT_BRO=man_an_dic['cnt_bro'],
             CERT_INFO=cert_dic['cert_info'],
             ISSUED=cert_dic['issued'],
-            NATIVE=code_an_dic['native'],
-            DYNAMIC=code_an_dic['dynamic'],
-            REFLECT=code_an_dic['reflect'],
-            CRYPTO=code_an_dic['crypto'],
-            OBFUS=code_an_dic['obfus'],
+            SHA256DIGEST=cert_dic['sha256Digest'],
             API=code_an_dic['api'],
-            DANG=code_an_dic['dang'],
+            DANG=code_an_dic['findings'],
             URLS=code_an_dic['urls'],
             DOMAINS=code_an_dic['domains'],
             EMAILS=code_an_dic['emails'],
@@ -177,22 +197,33 @@ def update_db_entry(app_dic, man_data_dic, man_an_dic, code_an_dic, cert_dic, bi
             ZIPPED=app_dic['zipped'],
             MANI=app_dic['mani'],
             EXPORTED_ACT=man_an_dic['exported_act'],
-            E_ACT=man_an_dic['exported_cnt']["act"],
-            E_SER=man_an_dic['exported_cnt']["ser"],
-            E_BRO=man_an_dic['exported_cnt']["bro"],
-            E_CNT=man_an_dic['exported_cnt']["cnt"],
+            E_ACT=man_an_dic['exported_cnt']['act'],
+            E_SER=man_an_dic['exported_cnt']['ser'],
+            E_BRO=man_an_dic['exported_cnt']['bro'],
+            E_CNT=man_an_dic['exported_cnt']['cnt'],
             APK_ID=apk_id,
+            PLAY_DETAILS=app_dic['playstore'],
+            FIREBASE=code_an_dic['firebase'],
+            TRACKERS=trackers,
         )
-    except:
-        PrintException("[ERROR] Updating DB")
+    except Exception:
+        logger.exception('Updating DB')
 
 
-def create_db_entry(app_dic, man_data_dic, man_an_dic, code_an_dic, cert_dic, bin_anal, apk_id):
-    """Create a new DB-Entry for APK/ZIP"""
+def create_db_entry(app_dic,
+                    man_data_dic,
+                    man_an_dic,
+                    code_an_dic,
+                    cert_dic,
+                    bin_anal,
+                    apk_id,
+                    trackers) -> None:
+    """Create a new DB-Entry for APK/ZIP."""
     try:
         static_db = StaticAnalyzerAndroid(
             TITLE='Static Analysis',
             APP_NAME=app_dic['app_name'],
+            REAL_NAME=app_dic['real_name'],
             SIZE=app_dic['size'],
             MD5=app_dic['md5'],
             SHA1=app_dic['sha1'],
@@ -209,6 +240,8 @@ def create_db_entry(app_dic, man_data_dic, man_an_dic, code_an_dic, cert_dic, bi
             BIN_ANALYSIS=bin_anal,
             FILES=app_dic['files'],
             CERTZ=app_dic['certz'],
+            ICON_HIDDEN=app_dic['icon_hidden'],
+            ICON_FOUND=app_dic['icon_found'],
             ACTIVITIES=man_data_dic['activities'],
             RECEIVERS=man_data_dic['receivers'],
             PROVIDERS=man_data_dic['providers'],
@@ -221,13 +254,9 @@ def create_db_entry(app_dic, man_data_dic, man_an_dic, code_an_dic, cert_dic, bi
             CNT_BRO=man_an_dic['cnt_bro'],
             CERT_INFO=cert_dic['cert_info'],
             ISSUED=cert_dic['issued'],
-            NATIVE=code_an_dic['native'],
-            DYNAMIC=code_an_dic['dynamic'],
-            REFLECT=code_an_dic['reflect'],
-            CRYPTO=code_an_dic['crypto'],
-            OBFUS=code_an_dic['obfus'],
+            SHA256DIGEST=cert_dic['sha256Digest'],
             API=code_an_dic['api'],
-            DANG=code_an_dic['dang'],
+            DANG=code_an_dic['findings'],
             URLS=code_an_dic['urls'],
             DOMAINS=code_an_dic['domains'],
             EMAILS=code_an_dic['emails'],
@@ -235,12 +264,15 @@ def create_db_entry(app_dic, man_data_dic, man_an_dic, code_an_dic, cert_dic, bi
             ZIPPED=app_dic['zipped'],
             MANI=app_dic['mani'],
             EXPORTED_ACT=man_an_dic['exported_act'],
-            E_ACT=man_an_dic['exported_cnt']["act"],
-            E_SER=man_an_dic['exported_cnt']["ser"],
-            E_BRO=man_an_dic['exported_cnt']["bro"],
-            E_CNT=man_an_dic['exported_cnt']["cnt"],
+            E_ACT=man_an_dic['exported_cnt']['act'],
+            E_SER=man_an_dic['exported_cnt']['ser'],
+            E_BRO=man_an_dic['exported_cnt']['bro'],
+            E_CNT=man_an_dic['exported_cnt']['cnt'],
             APK_ID=apk_id,
+            PLAY_DETAILS=app_dic['playstore'],
+            FIREBASE=code_an_dic['firebase'],
+            TRACKERS=trackers,
         )
         static_db.save()
-    except:
-        PrintException("[ERROR] Saving to DB")
+    except Exception:
+        logger.exception('Saving to DB')

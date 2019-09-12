@@ -6,6 +6,8 @@ MobSF/windows_vm_priv_key.asc
 # C extensions
 *.so
 
+.vscode/
+
 # Distribution / packaging
 .Python
 venv/
@@ -66,3 +68,9 @@ logs/
 uploads/
 db.sqlite3
 secret
+
+#IntelliJ IDE
+.idea
+*/migrations/*
+.fuse_hidden*
+/MalwareAnalyzer/malwaredb/*

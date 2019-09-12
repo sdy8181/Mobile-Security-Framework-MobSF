@@ -60,7 +60,7 @@ Example:
 > 1. This is the first step
 > 2. This is the second step
 > 3. Further steps, etc.
-> 4. Log information from `logs/MobSF.logs`
+> 4. Log information from `logs/debug.log`
 > 
 > `<url>` - a link to the reduced test case
 >
@@ -69,7 +69,7 @@ Example:
 > causing the bug, and potential solutions (and your opinions on their
 > merits).
 
-Open Bugs here: https://github.com/MobSF/Mobile-Security-Framework-MobSF/issues
+[Open Bugs here](https://github.com/MobSF/Mobile-Security-Framework-MobSF/issues)
 
 <a name="features"></a>
 ## Feature requests

@@ -5,7 +5,31 @@ body {
     font: normal 30px Verdana, Arial, sans-serif;
 }
 </style>
-<h1 align="center" class="page-header">Static Analysis - {{name}} </h1>
+<h1 align="center" class="page-header">Static Analysis - {{file_name}} </h1>
+<hr>
+ <div class="col-lg-2">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                <h3 class="panel-title"><span class="glyphicon glyphicon-file"></span> APP SCORE</h3><hr>
+                            </div>
+
+                            <div class="panel-body">
+                                <div class="list-group">
+                  <p>                                       
+                     <span class="label label-primary"><b>Average CVSS Score: </b>{{ average_cvss }}</span></p>
+                  <p>
+                     <span class="label label-primary"><b>App Security Score: </b>{{ security_score }}/100</span>
+                  </p>
+                  {% if VT_RESULT and VT_RESULT.total %}
+                   <p>
+                     <span class="label label-primary"><b>VirusTotal Detection: </b>{{ VT_RESULT.positives }}/{{ VT_RESULT.total }}</span>
+                  </p>
+                  {% endif %}
+                  
+                </div>
+              </div>
+            </div>
+          </div>
 <hr>
 
                   <div class="col-lg-7">
@@ -17,8 +41,12 @@ body {
                             <div class="panel-body">
                                 <div class="list-group">
                                     <p>
-                                       <span class="label label-primary"><b>File Name:</b>b </span>
-                                    {{ name }}
+                                       <span class="label label-primary"><b>File Name:</b> </span>
+                                    {{ file_name }}
+                                    </p>
+                                    <p>
+                                      <span class="label label-primary"><b>App Type:</b></span>
+                                      {{ bin_type }}
                                     </p>
                                     <p>
                                        <span class="label label-primary"><b>Size: </b></span>
@@ -34,11 +62,29 @@ body {
                                      </p><p>
                                      <span class="label label-primary"><b>SHA256: </b></span>
                                     {{ sha256 }}
+                                  </p>
                                 </div>
                             </div>
                         </div>
                     </div>
-    <hr>
+                <hr>
+                 <div class="col-lg-7">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                <h3 class="panel-title"><i></i> <span class="glyphicon glyphicon-file"></span> BINARY INFORMATION</h3>
+                                <hr>
+                            </div>
+                            <div class="panel-body">
+                                <div class="list-group">
+                                     <p><span class="label label-info"><b>Arch: </b></span>   {{ binary_info.arch }}</p>
+                                      <p><span class="label label-info"><b>Sub Arch: </b></span>   {{ binary_info.subarch }}</p>
+                                      <p><span class="label label-info"><b>Bit: </b></span>   {{ binary_info.bit }}
+                                      <p><span class="label label-info"><b>Endian: </b></span>   {{ binary_info.endian }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                  <hr>
                 <div class="col-lg-5">
                         <div class="panel panel-default">
                             <div class="panel-heading">
@@ -53,11 +99,16 @@ body {
                                     </p>
                                      <p>
                                     <span class="label label-primary"><b>Identifier: </b></span>
-                                    {{ id }}</p><p>
+                                    {{ id }}</p>
+                                    <p>
                                     <span class="label label-primary"><b>Version: </b></span>
-                                    {{ ver }}
+                                    {{ version }}
 
                                     </p>
+                                    <p>
+                                      <span class="label label-primary"><b>Build: </b></span>
+                                          {{ build }}
+                                     </p>
                                       <p>
                                     <span class="label label-primary"><b>SDK Name: </b></span>
                                     {{ sdk }}</p><p>
@@ -67,6 +118,70 @@ body {
                                     {{ min }}
                                     </p>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+       <hr>
+
+                <div class="col-lg-12">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                <h3 class="panel-title"><i class="fa fa-clock-o fa-fw"></i> <span class="glyphicon glyphicon-phone"></span> APP STORE INFORMATION</h3>
+                                <hr>
+                            </div>
+                            <div class="panel-body">
+                                <div class="list-group">
+            {% if not appstore_details.error %}
+
+          
+                  <p>                                       
+                    <span class="label label-info"><b>Title: </b></span>
+                    {{ appstore_details.title }}
+                  </p>
+                  <p>                                       
+                    <span class="label label-info"><b>Score: </b></span>
+                  {{ appstore_details.score}}
+
+                   <span class="label label-info"><b>Features: </b></span>
+                    {% for fea in appstore_details.features %}
+                    {{ fea }}, 
+                    {% endfor %}
+
+                   <span class="label label-info"><b>Price: </b></span>
+                      {{ appstore_details.price }}
+                    <span class="label label-info"><b>Category: </b></span>
+                    {% for cat in appstore_details.category %}
+                    {{ cat }}, 
+                    {% endfor %}
+
+                    <span class="label label-info"><b>App Store URL: </b></span>
+                      <a target="_blank" href="{{ appstore_details.itunes_url }}"> {{ appstore_details.app_id }} </a>
+                  </p>
+                  
+                  <p>
+                  <span class="label label-info"><b>Developer: </b></span>
+                      {{appstore_details.developer}}
+                   <span class="label label-info"><b>Developer ID: </b></span>
+                    {{appstore_details.developer_id}} 
+                  </p>
+                  <p>
+                    <span class="label label-info"><b>Developer Website: </b></span>
+                      {{appstore_details.developer_website }}
+                    <span class="label label-info"><b>Developer URL: </b></span>
+                      {{appstore_details.developer_url}}, 
+                  </p>
+                  <p>
+                     <span class="label label-info"><b>Support Devices: </b></span>
+                    {% for dev in appstore_details.supported_devices %}
+                    {{ dev }}, 
+                    {% endfor %}
+                  </p>
+                 <p>                                       
+                      <span class="label label-info"><b>Description: </b></span>
+                      <pre>{{ appstore_details.description }}</pre>
+                  </p>
+              {%  endif  %}
+             </div>
                             </div>
                         </div>
                     </div>
@@ -89,19 +204,19 @@ body {
                    </tr>
                  </thead>
                  <tbody>
-                   {%for perm in permissions%}
-                   <tr>
-                     <td>
-                       {{ perm.0 | safe }}
-                     </td>
-                     <td>
-                       {{ perm.1 | safe }}
-                     </td>
-                     <td>
-                       {{ perm.2 | safe }}
-                     </td>
-                   </tr>
-                   {% endfor %}
+                   {%for  perm in permissions%}
+                    <tr>
+                      <td>
+                        {{ perm.name }}
+                      </td>
+                      <td>
+                        {{ perm.description | safe}}
+                      </td>
+                      <td>
+                        {{ perm.reason | safe}}
+                      </td>
+                    </tr>
+                    {% endfor %}
                  </tbody>
                </table>
              </div>
@@ -121,7 +236,7 @@ body {
        <div class="col-lg-12">
          <div class="panel panel-default">
            <div class="panel-heading">
-             <h3 class="panel-title"> App Transport Security (ATS)</h3><hr>
+             <h3 class="panel-title"> APP TRANSPORT SECURITY (ATS)</h3><hr>
            </div>
 
            <div class="panel-body">
@@ -168,6 +283,46 @@ body {
                </div>
              </div><hr>
 
+                    <!-- ============================================================= -->
+        {% if VT_RESULT %}
+                <div class="col-lg-12">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                             <h3 class="panel-title"><i class="fa fa-bug"></i>VirusTotal Report</h3><hr>
+                        </div>
+                        <div class="panel-body">
+                        <p> {{ VT_RESULT.positives }} / {{ VT_RESULT.total }}&nbsp; AVs found this file Malicious! </p>
+                        {% if VT_RESULT.positives %}
+                          <div class="table-responsive">
+                                <table class="table table-bordered table-hover table-striped">
+                                                <thead>
+                                                    <tr>
+                                                        <th>AV</th>
+                                                        <th>Detection</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                {% for av_name,av_result in VT_RESULT.scans.items %}
+                                                    {% if av_result.detected == True %}
+                                                       <tr>
+                                                            <td>
+                                                                {{ av_name }}
+                                                            </td>
+                                                           <td>
+                                                                <span class="label label-danger">{{ av_result.result }}</span>
+                                                            </td>
+                                                      </tr>
+                                                    {% endif %}
+                                                {% endfor %}
+                                                </tbody>
+                                </table>
+                          </div>
+                        {% endif %}
+                        </div>
+                    </div>
+                </div>
+        {% endif %}
+
   <div class="col-lg-12">
                         <div class="panel panel-default">
                             <div class="panel-heading">
@@ -180,13 +335,37 @@ body {
                       <tr>
                           <th>ISSUE</th>
                           <th>STATUS</th>
+                          <th>CVSS</th>
+                          <th>CWE</th>
                           <th>DESCRIPTION</th>
 
                       </tr>
                   </thead>
-                  <tbody>
-                    {{ bin_anal | safe}}
-                    </tbody>
+                   <tbody>
+                   {%for  bin in bin_anal%}
+                    <tr>
+                      <td>
+                        {{ bin.issue }}
+                      </td>
+                      <td>
+                        {% if bin.status == 'Info' %}
+                          <span class='label label-info'>{{bin.status}}</span>
+                        {% elif bin.status == 'Secure' %}
+                          <span class='label label-success'>{{bin.status}}</span>
+                        {% elif bin.status == 'Insecure' %}
+                          <span class='label label-danger'>{{bin.status}}</span>
+                        {% elif bin.status == 'Warning' %}
+                          <span class='label label-warning'>{{bin.status}}</span>
+                        {% endif %}
+                      </td>
+                       <td><b>{{ bin.cvss }}</b></td>
+                       <td><b>{{ bin.cwe }}</b></td>
+                      <td>
+                        {{ bin.description | safe}}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                 </tbody>
                     </table>
 
                             </div>
@@ -204,7 +383,31 @@ body {
                             <div class="panel-body">
                   <div class="table-responsive">
 
-         {{ file_analysis | safe}}
+                 <table class="table table-bordered table-hover table-striped">
+                          <thead>
+                              <tr>
+                                  <th>ISSUE</th>
+                                  <th>FILES</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+
+                            {%for item in file_analysis %}
+                            <tr>
+                              <td>
+                                {{ item.issue }}
+                              </td>
+                              <td>
+                                {% for file in item.files %}
+                                  {{ file.file_path }}
+                                  </br>
+                                {% endfor %}
+                              </td>
+                          
+                            </tr>
+                            {% endfor %}
+                          </tbody>
+                      </table>
 
                             </div>
                         </div>
@@ -219,7 +422,10 @@ body {
                             <div class="panel-body">
                                 <div class="list-group">
                   <p>
-                  {{ libs|safe }}
+                    {% for lib in libs %}
+                    {{ lib }}
+                    </br>
+                    {% endfor %}
                   </p>
                                 </div>
 
