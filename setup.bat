@@ -15,7 +15,7 @@ where python >nul 2>&1 && (
     echo [INSTALL] Found OpenSSL executable
   ) else (
    echo [ERROR] OpenSSL executable not found in [C:\\Program Files\\OpenSSL-Win64\\bin\\openssl.exe]
-   echo [INFO] Install OpenSSL - https://slproweb.com/download/Win64OpenSSL-1_1_1c.exe
+   echo [INFO] Install OpenSSL - https://slproweb.com/download/Win64OpenSSL-1_1_1d.exe
    pause
    exit /b
   )
@@ -37,10 +37,12 @@ where python >nul 2>&1 && (
   set LIB=C:\Program Files\OpenSSL-Win64\lib;%LIB%
   set INCLUDE=C:\Program Files\OpenSSL-Win64\include;%INCLUDE%
 
-  echo [INSTALL] Installing APKiD requirements - yara-python
-  pip install wheel
-  pip wheel --wheel-dir=yara-python --build-option="build" --build-option="--enable-dex" git+https://github.com/VirusTotal/yara-python.git
+  echo [INSTALL] Installing dex enabled yara-python
+  pip install --upgrade wheel
+  rmdir /q /s yara-python
+  pip wheel --wheel-dir=yara-python --build-option="build" --build-option="--enable-dex" git+https://github.com/VirusTotal/yara-python.git@v3.10.0
   pip install --no-index --find-links=yara-python yara-python
+  rmdir /q /s yara-python
 
   echo [INSTALL] Installing Requirements
   pip install -r requirements.txt

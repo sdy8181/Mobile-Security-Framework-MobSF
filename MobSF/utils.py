@@ -11,9 +11,16 @@ import re
 import shutil
 import signal
 import subprocess
+import stat
 import sys
+import sqlite3
 import unicodedata
 import threading
+from distutils.version import LooseVersion
+
+import distro
+
+import psutil
 
 import requests
 
@@ -24,6 +31,7 @@ from install.windows.setup import windows_config_local
 from . import settings
 
 logger = logging.getLogger(__name__)
+ADB_PATH = None
 
 
 class Color(object):
@@ -86,12 +94,11 @@ def print_version():
         print('REST API Key: ' + Color.BOLD + api_key() + Color.END)
     logger.info('OS: %s', platform.system())
     logger.info('Platform: %s', platform.platform())
-    if platform.dist()[0]:
-        logger.info('Dist: %s', str(platform.dist()))
+    dist = distro.linux_distribution(full_distribution_name=False)
+    if dist:
+        logger.info('Dist: %s', ' '.join(dist))
     find_java_binary()
-    find_vboxmange_binary(True)
     check_basic_env()
-    adb_binary_or32bit_support()
     thread = threading.Thread(target=check_update, name='check_update')
     thread.start()
 
@@ -109,16 +116,17 @@ def check_update():
         response = requests.get(github_url, timeout=5,
                                 proxies=proxies, verify=verify)
         html = str(response.text).split('\n')
+        local_version = settings.MOBSF_VER
         for line in html:
             if line.startswith('MOBSF_VER'):
-                line = line.replace('MOBSF_VER', '').replace("'", '')
-                line = line.replace('=', '').strip()
-                if line != settings.MOBSF_VER:
+                remote_version = line.split('= ', 1)[1].replace('\'', '')
+                if LooseVersion(local_version) < LooseVersion(remote_version):
                     logger.warning('A new version of MobSF is available, '
-                                   'Please update from master branch or check '
-                                   'for new releases.')
+                                   'Please update to %s from master branch.',
+                                   remote_version)
                 else:
                     logger.info('No updates available.')
+                break
     except requests.exceptions.HTTPError:
         logger.warning('\nCannot check for updates..'
                        ' No Internet Connection Found.')
@@ -182,6 +190,10 @@ def get_mobsf_home(use_home):
         upload_dir = os.path.join(mobsf_home, 'uploads/')
         if not os.path.exists(upload_dir):
             os.makedirs(upload_dir)
+        # Signature Directory
+        sig_dir = os.path.join(mobsf_home, 'signatures/')
+        if not os.path.exists(sig_dir):
+            os.makedirs(sig_dir)
         return mobsf_home
     except Exception:
         logger.exception('Creating MobSF Home Directory')
@@ -209,42 +221,6 @@ def migrate(base_dir):
         subprocess.call(args)
     except Exception:
         logger.exception('Cannot Migrate')
-
-
-def kali_fix(base_dir):
-    try:
-        if platform.system() == 'Linux' and platform.dist()[0] == 'Kali':
-            fix_path = os.path.join(base_dir, 'scripts/kali_fix.sh')
-            os.chmod(fix_path, 0o744)
-            subprocess.call([fix_path], shell=True)
-    except Exception:
-        logger.exception('Cannot run Kali Fix')
-
-
-def find_vboxmange_binary(debug=False):
-    try:
-        vpt = ['C:\\Program Files\\Oracle\\VirtualBox\\VBoxManage.exe',
-               'C:\\Program Files (x86)\\Oracle\\VirtualBox\\VBoxManage.exe']
-        if settings.ANDROID_DYNAMIC_ANALYZER == 'MobSF_VM':
-            if (len(settings.VBOXMANAGE_BINARY) > 0
-                    and is_file_exists(settings.VBOXMANAGE_BINARY)):
-                return settings.VBOXMANAGE_BINARY
-            if platform.system() == 'Windows':
-                for path in vpt:
-                    if os.path.isfile(path):
-                        return path
-            else:
-                # Path to VBoxManage in Linux/Mac
-                vpt = ['/usr/bin/VBoxManage',
-                       '/usr/local/bin/VBoxManage']
-                for path in vpt:
-                    if os.path.isfile(path):
-                        return path
-            if debug:
-                logger.warning('Could not find VirtualBox path')
-    except Exception:
-        if debug:
-            logger.exception('Cannot find VirtualBox path.')
 
 
 def find_java_binary():
@@ -295,7 +271,7 @@ def run_process(args):
 def print_n_send_error_response(request,
                                 msg,
                                 api=False,
-                                exp='Error Description'):
+                                exp='Description'):
     """Print and log errors."""
     logger.error(msg)
     if api:
@@ -372,12 +348,12 @@ def is_internet_available():
         requests.get('https://www.google.com', timeout=5,
                      proxies=proxies, verify=verify)
         return True
-    except requests.exceptions.HTTPError:
+    except Exception:
         try:
             requests.get('https://www.baidu.com/', timeout=5,
                          proxies=proxies, verify=verify)
             return True
-        except requests.exceptions.HTTPError:
+        except Exception:
             return False
     return False
 
@@ -432,63 +408,78 @@ def get_random():
     return ''.join([random.SystemRandom().choice(choice) for i in range(50)])
 
 
-def zipdir(path, zip_file):
-    """Zip a directory."""
-    try:
-        logger.info('Zipping')
-        # pylint: disable=unused-variable
-        # Needed by os.walk
-        for root, _sub_dir, files in os.walk(path):
-            for file_name in files:
-                zip_file.write(os.path.join(root, file_name))
-    except Exception:
-        logger.exception('Zipping')
+def find_process_by(name):
+    """Return a set of process path matching name."""
+    proc = set()
+    for p in psutil.process_iter(attrs=['name', 'exe', 'cmdline']):
+        if (name == p.info['name'] or p.info['exe']
+            and os.path.basename(p.info['exe']) == name
+                or p.info['cmdline'] and p.info['cmdline'][0] == name):
+            proc.add(p.info['exe'])
+    return proc
+
+
+def get_device():
+    """Get Device."""
+    if os.getenv('ANALYZER_IDENTIFIER'):
+        return os.getenv('ANALYZER_IDENTIFIER')
+    if settings.ANALYZER_IDENTIFIER:
+        return settings.ANALYZER_IDENTIFIER
+    else:
+        dev_id = ''
+        out = subprocess.check_output([get_adb(), 'devices']).splitlines()
+        if len(out) > 2:
+            dev_id = out[1].decode('utf-8').split('\t')[0]
+            return dev_id
+    logger.error('Is the Android VM running?\n'
+                 'MobSF cannot identify device id.\n'
+                 'Please set ANALYZER_IDENTIFIER in MobSF/settings.py')
 
 
 def get_adb():
     """Get ADB binary path."""
     try:
+        global ADB_PATH
         if (len(settings.ADB_BINARY) > 0
                 and is_file_exists(settings.ADB_BINARY)):
-            return settings.ADB_BINARY
+            ADB_PATH = settings.ADB_BINARY
+            return ADB_PATH
+        if ADB_PATH:
+            return ADB_PATH
+        if platform.system() == 'Windows':
+            adb_loc = find_process_by('adb.exe')
         else:
-            adb = 'adb'
-            if platform.system() == 'Darwin':
-                adb_dir = os.path.join(settings.TOOLS_DIR, 'adb/mac/')
-                os.chmod(adb_dir, 0o744)
-                adb = os.path.join(settings.TOOLS_DIR, 'adb/mac/adb')
-            elif platform.system() == 'Linux':
-                adb_dir = os.path.join(settings.TOOLS_DIR, 'adb/linux/')
-                os.chmod(adb_dir, 0o744)
-                adb = os.path.join(settings.TOOLS_DIR, 'adb/linux/adb')
-            elif platform.system() == 'Windows':
-                adb = os.path.join(settings.TOOLS_DIR, 'adb/windows/adb.exe')
-            return adb
+            adb_loc = find_process_by('adb')
+        if len(adb_loc) > 1:
+            logger.warning('Multiple ADB locations found. '
+                           'Set adb path, ADB_BINARY in MobSF/settings.py'
+                           ' with same adb binary location used'
+                           ' by Genymotion VM/Android VM.')
+            logger.warning(adb_loc)
+        if adb_loc:
+            ADB_PATH = adb_loc.pop()
+            return ADB_PATH
     except Exception:
         logger.exception('Getting ADB Location')
-        return 'adb'
-
-
-def adb_binary_or32bit_support():
-    """Check if 32bit is supported. Also if the binary works."""
-    adb_path = get_adb()
-    try:
-        fnull = open(os.devnull, 'w')
-        subprocess.call([adb_path], stdout=fnull, stderr=fnull)
-    except Exception:
-        msg = ('\nYou don\'t have 32 bit execution support enabled'
-               ' or MobSF shipped ADB binary is not compatible with your OS.'
-               '\nPlease set the ADB_BINARY path in MobSF/settings.py')
-        logger.warning(msg)
+    finally:
+        if ADB_PATH:
+            os.environ['MOBSF_ADB'] = ADB_PATH
+        else:
+            os.environ['MOBSF_ADB'] = 'adb'
+            logger.warning('Dynamic Analysis related '
+                           'functions will not work. '
+                           '\nMake sure a Genymotion Android VM'
+                           ' is running before performing Dynamic Analyis.')
+    return 'adb'
 
 
 def check_basic_env():
     """Check if we have basic env for MobSF to run."""
     logger.info('MobSF Basic Environment Check')
     try:
-        import capfuzz  # noqa F401
+        import http_tools  # noqa F401
     except ImportError:
-        logger.exception('CapFuzz not installed!')
+        logger.exception('httptools not installed!')
         os.kill(os.getpid(), signal.SIGTERM)
     try:
         import lxml  # noqa F401
@@ -507,12 +498,14 @@ def check_basic_env():
                     'Java/jdk1.7.0_17/bin/"'
                     '\nJAVA_DIRECTORY = "/usr/bin/"')
         os.kill(os.getpid(), signal.SIGTERM)
+    get_adb()
 
 
 def first_run(secret_file, base_dir, mobsf_home):
     # Based on https://gist.github.com/ndarville/3452907#file-secret-key-gen-py
-
-    if is_file_exists(secret_file):
+    if 'MOBSF_SECRET_KEY' in os.environ:
+        secret_key = os.environ['MOBSF_SECRET_KEY']
+    elif is_file_exists(secret_file):
         secret_key = open(secret_file).read().strip()
     else:
         try:
@@ -525,7 +518,6 @@ def first_run(secret_file, base_dir, mobsf_home):
         # Run Once
         make_migrations(base_dir)
         migrate(base_dir)
-        kali_fix(base_dir)
         # Windows Setup
         windows_config_local(mobsf_home)
     return secret_key
@@ -534,6 +526,7 @@ def first_run(secret_file, base_dir, mobsf_home):
 def update_local_db(db_name, url, local_file):
     """Update Local DBs."""
     update = None
+    inmemoryfile = None
     try:
         proxies, verify = upstream_proxy('http')
     except Exception:
@@ -545,6 +538,9 @@ def update_local_db(db_name, url, local_file):
                                 verify=verify)
         resp = response.content
         inmemoryfile = io.BytesIO(resp)
+        # Create on first run
+        if not is_file_exists(local_file):
+            return resp
         # Check1: SHA256 Change
         if sha256_object(inmemoryfile) != sha256(local_file):
             # Hash Changed
@@ -559,3 +555,75 @@ def update_local_db(db_name, url, local_file):
     finally:
         if inmemoryfile:
             inmemoryfile.truncate(0)
+
+
+def read_sqlite(sqlite_file):
+    """Sqlite Dump - Readable Text."""
+    logger.info('Reading SQLite db')
+    table_dict = {}
+    try:
+        con = sqlite3.connect(sqlite_file)
+        cur = con.cursor()
+        cur.execute('SELECT name FROM sqlite_master WHERE type=\'table\';')
+        tables = cur.fetchall()
+        for table in tables:
+            table_dict[table[0]] = {'head': [], 'data': []}
+            cur.execute('PRAGMA table_info(\'%s\')' % table)
+            rows = cur.fetchall()
+            for sq_row in rows:
+                table_dict[table[0]]['head'].append(sq_row[1])
+            cur.execute('SELECT * FROM \'%s\'' % table)
+            rows = cur.fetchall()
+            for sq_row in rows:
+                tmp_row = []
+                for each_row in sq_row:
+                    tmp_row.append(str(each_row))
+                table_dict[table[0]]['data'].append(tmp_row)
+    except Exception:
+        logger.exception('Reading SQLite db')
+    return table_dict
+
+
+def is_pipe_or_link(path):
+    """Check for named pipe."""
+    return os.path.islink(path) or stat.S_ISFIFO(os.stat(path).st_mode)
+
+
+def get_network():
+    """Get Network IPs."""
+    ips = []
+    try:
+        for det in psutil.net_if_addrs().values():
+            ips.append(det[0].address)
+    except Exception:
+        logger.exception('Failed to enumerate network interfaces')
+    return ips
+
+
+def get_proxy_ip(identifier):
+    """Get Proxy IP."""
+    proxy_ip = None
+    try:
+        if not identifier:
+            return proxy_ip
+        ips = get_network()
+        if ':' not in identifier or not ips:
+            return proxy_ip
+        device_ip = identifier.split(':', 1)[0]
+        ip_range = device_ip.rsplit('.', 1)[0]
+        guess_ip = ip_range + '.1'
+        if guess_ip in ips:
+            return guess_ip
+        for ip_addr in ips:
+            to_check = ip_addr.rsplit('.', 1)[0]
+            if to_check == ip_range:
+                return ip_addr
+    except Exception:
+        logger.error('Error getting Proxy IP')
+    return proxy_ip
+
+
+def is_safe_path(safe_root, check_path):
+    """Detect Path Traversal."""
+    return os.path.commonprefix(
+        (os.path.realpath(check_path), safe_root)) == safe_root

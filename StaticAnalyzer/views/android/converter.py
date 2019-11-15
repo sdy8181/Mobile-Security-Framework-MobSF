@@ -7,6 +7,8 @@ import os
 import platform
 import shutil
 import subprocess
+import threading
+import stat
 
 from django.conf import settings
 
@@ -34,9 +36,9 @@ def dex_2_smali(app_dir, tools_dir):
                     and is_file_exists(settings.BACKSMALI_BINARY)):
                 bs_path = settings.BACKSMALI_BINARY
             else:
-                bs_path = os.path.join(tools_dir, 'baksmali-2.3.jar')
+                bs_path = os.path.join(tools_dir, 'baksmali-2.3.4.jar')
             output = os.path.join(app_dir, 'smali_source/')
-            args = [
+            smali = [
                 settings.JAVA_BINARY,
                 '-jar',
                 bs_path,
@@ -45,7 +47,9 @@ def dex_2_smali(app_dir, tools_dir):
                 '-o',
                 output,
             ]
-            subprocess.call(args)
+            trd = threading.Thread(target=subprocess.call, args=(smali,))
+            trd.daemon = True
+            trd.start()
     except Exception:
         logger.exception('Converting DEX to SMALI')
 
@@ -69,7 +73,9 @@ def apk_2_java(app_path, app_dir, tools_dir):
                 jadx = os.path.join(tools_dir, 'jadx/bin/jadx.bat')
             else:
                 jadx = os.path.join(tools_dir, 'jadx/bin/jadx')
-                os.chmod(jadx, 0o744)
+                # Set write permission, if JADX is not executable
+                if not os.access(jadx, os.X_OK):
+                    os.chmod(jadx, stat.S_IEXEC)
             args = [
                 jadx,
                 '-ds',

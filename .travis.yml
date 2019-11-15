@@ -12,8 +12,8 @@ matrix:
     sudo: false
     before_install:
     - export TRAVIS_COMMIT_MSG="$(git log --format=%B --no-merges -n 1)"
-    - sudo apt-get install -y libpng16-16 libssl-dev xfonts-75dpi xfonts-base libffi-dev
-      libxml2-dev libxslt1-dev openssl
+    - sudo apt-get install -y libpng16-16 xfonts-75dpi xfonts-base libffi-dev	
+      libxml2-dev libxslt1-dev 
     - wget https://downloads.wkhtmltopdf.org/0.12/0.12.5/wkhtmltox_0.12.5-1.xenial_amd64.deb
     - sudo dpkg -i wkhtmltox_0.12.5-1.xenial_amd64.deb
   - name: Python 3.7 on OSX, Xcode 11
@@ -34,16 +34,15 @@ matrix:
     before_install:
     - export TRAVIS_COMMIT_MSG="$(git log --format=%B --no-merges -n 1)"
     - choco install wkhtmltopdf
-    - choco install python
+    - choco install python --version 3.7.5
     - choco install openjdk --version 12.0.2
 install:
 - set PYTHONIOENCODING=UTF8
 - pip3 install --upgrade pip || python -m pip install --upgrade pip
 before_script:
-- pip3 install wheel tox
-- pip3 wheel --wheel-dir=/tmp/yara-python --build-option="build" --build-option="--enable-dex"
-  git+https://github.com/VirusTotal/yara-python.git
-- pip3 install --no-index --find-links=/tmp/yara-python yara-python
+- pip3 install --upgrade wheel tox
+- pip3 wheel --wheel-dir=yara-python --build-option="build" --build-option="--enable-dex" git+https://github.com/VirusTotal/yara-python.git@v3.10.0
+- pip3 install --no-index --find-links=yara-python yara-python
 - pip3 install -r requirements.txt
 - python3 manage.py makemigrations || python manage.py makemigrations
 - python3 manage.py migrate || python manage.py migrate
@@ -52,3 +51,4 @@ script:
 - python3 manage.py test || python manage.py test
 notifications:
   slack: mobsf:4Ce13XOnMRzFG3bqQ0Hap7OP
+  

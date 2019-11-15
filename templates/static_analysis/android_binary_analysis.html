@@ -2,6 +2,20 @@
   {% extends "base.html" %}
    {% load staticfiles %}
    {% block content %}
+<style type="text/css" media="print">
+      #mobsf_header{
+        visibility: hidden;
+      }
+      @page { size: landscape; }
+      @media print {
+        .btn, #scan_opts, #view_box  {
+          display: none;
+        }
+      #mobsf_header {
+          visibility: visible;
+        }
+       }
+</style>
       <!-- Left side column. contains the logo and sidebar -->
       <aside class="main-sidebar">
         <!-- sidebar: style can be found in sidebar.less -->
@@ -62,29 +76,23 @@
                 <li><a href="#files"><i class="fa fa-files-o"></i> Files</a></li>
               </ul>
             </li>
-            <li><a target="_blank" href="../PDF/?md5={{ md5 }}&amp;type=APK"><i class="glyphicon glyphicon-list-alt"></i> Download Report</a></li>
-      {% if dynamic_analysis_done == False %}
-              <li><a href="javascript:document.getElementById('dynform').submit();"><i class="glyphicon glyphicon-play-circle""></i> <strong>Start Dynamic Analysis</strong></a></li>
+            <li><a target="_blank" href="../PDF/?md5={{ md5 }}&amp;type=APK"><i class="glyphicon glyphicon-list-alt"></i> PDF Report</a></li>
+            <li><a href="javascript:window.print()"><i class="fa fa-print"></i> Print Report</a></li>
+      {% if dynamic_analysis_done %}
+          <li><a href="../dynamic_report/?hash={{ md5 }}&amp;package={{ packagename }}"><i class="glyphicon glyphicon-play-circle"></i> <strong>Dynamic Analysis Report</strong></a></li>
       {% else %}
-        <li><a href="/Report/?md5={{ md5 }}&pkg={{ packagename }}"><i class="glyphicon glyphicon-play-circle""></i> <strong>Dynamic Analysis Report</strong></a></li>
+          <li><a href="../android_dynamic/?hash={{md5}}&amp;package={{packagename}}"><i class="glyphicon glyphicon-play-circle"></i> <strong>Start Dynamic Analysis</strong></a></li>
       {% endif %}
           </ul>
         </div>
         <!-- /.sidebar -->
       </aside>
-
+      <div id="mobsf_header" align="center">
+          <h4>MobSF Static Analysis Report - {%if real_name %} {{ real_name }}  {% else %} {{ name }} {% endif %}</h4>
+        </div>
       <!-- Content Wrapper. Contains page content -->
       <div class="content-wrapper">
         <!-- Content Header (Page header) -->
-     
-          <form id="dynform" action="../DynamicAnalyzer/" method="POST">
-           {% csrf_token %} 
-          <input type="hidden" name="md5" value="{{ md5 }}">
-          <input type="hidden" name="pkg" value="{{ packagename }}">
-          <input type="hidden" name="lng" value="{{ mainactivity }}">
-          </form>
-
-
         <!-- Main content -->
         <div class="content body">
 
@@ -414,39 +422,38 @@
 
   <div class="row">
     <div class="col-sm-4">
-      <div class="box box-primary">
+      <div class="box box-primary" id="scan_opts">
         <div class="box-header with-border">
           <h3 class="box-title">Scan Options</h3>
           <span class="label label-primary pull-right"><i class="glyphicon glyphicon-tasks"></i></span>
         </div><!-- /.box-header -->
         <div align="center" class="box-body">
          <div class="list-group">
-                 <p> <a href="../StaticAnalyzer/?checksum={{ md5 }}&amp;name={{ name }}&amp;type=apk&amp;rescan=1" class="btn btn-info btn-lg" role="button"><i class="glyphicon glyphicon-refresh"></i> Rescan</a></p>
+                 <p> <a href="../StaticAnalyzer/?checksum={{ md5 }}&amp;name={{ name }}&amp;type=apk&amp;rescan=1" class="btn btn-info" role="button"><i class="glyphicon glyphicon-refresh"></i> Rescan</a></p>
                  <p>
-                  <a href="javascript:document.getElementById('dynform').submit();" class="btn btn-success btn-lg" role="button"><i class="glyphicon glyphicon-play-circle"></i> Start Dynamic Analysis</a>
+                  <a href="../android_dynamic/?hash={{md5}}&amp;package={{packagename}}" class="btn btn-success" role="button"><i class="glyphicon glyphicon-play-circle"></i> Start Dynamic Analysis</a>
                  </p>
             </div>
           </div><!-- /.box-body -->
       </div><!-- /.box -->
     </div><!-- /.col -->
     <div class="col-sm-8">
-      <div class="box box-danger">
+      <div class="box box-danger" id="view_box">
         <div class="box-header with-border">
           <h3 class="box-title">View Code</h3>
           <span class="label label-danger pull-right"><i class="fa fa-flash"></i></span>
         </div><!-- /.box-header -->
         <div align="center" class="box-body">
-          <a href="../Java/?md5={{ md5 }}{{ zipped }}" class="btn btn-info" role="button"><i class="fa fa-code"></i> View Java</a>
-            <a href="../download/{{ md5 }}-java.zip" class="btn btn-warning" role="button"> <i class="glyphicon glyphicon-download"></i> Download Java Code</a>
-              </br>
+          <p>
+            <a target="_blank" href="{{mani}}" role="button" class="btn btn-primary"><i class="fa fa-eye"></i>  View AndroidManifest.xml</a>
+            <a href="../Java/?md5={{ md5 }}{{ zipped }}" class="btn btn-info" role="button"><i class="fa fa-code"></i> View Java</a>
             <a href="../Smali/?md5={{ md5 }}" class="btn btn-info" role="button"><i class="fa fa-code"></i> View Smali</a>
-            <a href="../download/{{ md5 }}-smali.zip" class="btn btn-warning"> <i class="glyphicon glyphicon-download"></i> Download Smali Code</a> 
-         </br></br>
-            
-             <a target="_blank" href="{{mani}}" role="button" class="btn btn-primary"><i class="fa fa-eye"></i>  View AndroidManifest.xml</a>
-          
-         
-        
+            </p>
+            <p>
+            <a href="../generate_downloads/?hash={{ md5 }}&amp;file_type=java" class="btn btn-warning" role="button"> <i class="glyphicon glyphicon-download"></i> Download Java Code</a>
+            <a href="../generate_downloads/?hash={{ md5 }}&amp;file_type=smali" class="btn btn-warning"> <i class="glyphicon glyphicon-download"></i> Download Smali Code</a> 
+            <a href="../generate_downloads/?hash={{ md5 }}&amp;file_type=apk" class="btn btn-warning"> <i class="glyphicon glyphicon-download"></i> Download APK</a> 
+            </p>
         </div><!-- /.box-body -->
       </div><!-- /.box -->
     </div><!-- /.col -->
@@ -637,7 +644,7 @@ Production ready applications should not be signed with 'Android Debug' Certific
                   </td>
                   <td>
                   {% for path in details|key:"path" %}
-                   <a href="../ViewSource/?file={{ path }}&md5={{ md5 }}&type=apk"> {{ path }}</a>
+                   <a href="../ViewSource/?file={{ path }}&amp;md5={{ md5 }}&amp;type=apk"> {{ path }}</a>
                   </br>
                   {% endfor %}
                   </td>
@@ -810,6 +817,7 @@ Production ready applications should not be signed with 'Android Debug' Certific
                                                 <th>SEVERITY</th>
                                                 <th>CVSS</th>
                                                 <th>CWE</th>
+                                                <th>OWASP</th>
                                                 <th>FILES</th>
                                                 
                                             </tr>
@@ -833,9 +841,10 @@ Production ready applications should not be signed with 'Android Debug' Certific
                   </td>
                   <td><b>{{ details|key:"cvss" }}</b></td>
                   <td><b>{{ details|key:"cwe" }}</b></td>
+                   <td><b>{{ details|key:"owasp" }}</b></td>
                   <td>
                   {% for path in details|key:"path" %}
-                   <a href="../ViewSource/?file={{ path }}&md5={{ md5 }}&type=apk"> {{ path }}</a>
+                   <a href="../ViewSource/?file={{ path }}&amp;md5={{ md5 }}&amp;type=apk"> {{ path }}</a>
                   </br>
                   {% endfor %}
                   </td>
